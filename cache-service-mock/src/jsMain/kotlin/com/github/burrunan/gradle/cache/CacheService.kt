@@ -32,17 +32,30 @@ import node.url.Url
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class CacheService {
+class CacheService(
+    private val tooManyRequestsForPaths: Set<String> = emptySet(),
+) {
     companion object {
         const val ARCHIVE_DOWNLOAD_URL = "_apis/artifactcache/get"
     }
 
+    var requestCount: Int = 0
+        private set
+
     private val storage = CacheStorage()
+
+    private fun checkRateLimit(path: String) {
+        requestCount += 1
+        if (path in tooManyRequestsForPaths) {
+            throw HttpException.tooManyRequests("Too many requests for $path")
+        }
+    }
 
     private val server = node.http.createServer<IncomingMessage, ServerResponse<*>> { req, res ->
         val query = node.url.parse(req.url!!, true)
         val path = query.pathname ?: ""
         res.handle {
+            checkRateLimit(path)
             when {
                 path == "/_apis/artifactcache/caches" && req.method == "POST" ->
                     reserveCache(req, res)

@@ -21,5 +21,6 @@ class HttpException(val code: Int, message: String) : Throwable(message) {
         fun notImplemented(message: String) = HttpException(501, message)
         fun notFound(message: String) = HttpException(404, message)
         fun badRequest(message: String) = HttpException(400, message)
+        fun tooManyRequests(message: String) = HttpException(429, message)
     }
 }

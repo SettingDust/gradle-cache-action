@@ -123,4 +123,33 @@ class CacheServerTest {
             )
         }
     }
+
+    @Test
+    fun stopsQueryingCacheAfterRateLimit() = runTest {
+        val rateLimitedCacheService = CacheService(
+            tooManyRequestsForPaths = setOf("/_apis/artifactcache/cache"),
+        )
+
+        rateLimitedCacheService {
+            assertEquals(
+                RestoreType.None,
+                restoreAndLog(listOf("missing/**"), "linux-gradle-a", version = "1-"),
+                "HTTP 429 should degrade to cache miss",
+            )
+
+            val requestCountAfterFirstAttempt = rateLimitedCacheService.requestCount
+
+            assertEquals(
+                RestoreType.None,
+                restoreAndLog(listOf("missing/**"), "linux-gradle-b", version = "1-"),
+                "Subsequent restores should also degrade to cache miss",
+            )
+
+            assertEquals(
+                requestCountAfterFirstAttempt,
+                rateLimitedCacheService.requestCount,
+                "Further cache requests should be skipped after HTTP 429",
+            )
+        }
+    }
 }
